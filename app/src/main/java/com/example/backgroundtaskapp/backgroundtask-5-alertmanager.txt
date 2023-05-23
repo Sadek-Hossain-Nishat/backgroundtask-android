@@ -1,0 +1,439 @@
+# AndroidManifest.xml
+
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+<!--    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />-->
+<!--    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>-->
+
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <application
+        android:name=".App"
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.BackgroundTaskApp"
+        tools:targetApi="31">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+
+       <receiver android:name=".AlertReceiver"/>
+    </application>
+
+
+
+</manifest>
+
+
+# App.java
+
+
+
+import android.app.Application;
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.os.Build;
+
+public class App extends Application {
+    public static final String CHANNEL_ID= "exampleServiceChannel";
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+
+        createNotificationChannel();
+    }
+
+    private void createNotificationChannel() {
+
+        if (Build.VERSION.SDK_INT>=Build.VERSION_CODES.O) {
+
+            NotificationChannel serviceChannel = new NotificationChannel(
+                    CHANNEL_ID,
+                    "Example Service Channel",
+                    NotificationManager.IMPORTANCE_DEFAULT
+            );
+            NotificationManager manager = getSystemService(NotificationManager.class);
+            manager.createNotificationChannel(serviceChannel);
+        }
+
+
+    }
+}
+
+
+# AlertReceiver.java
+
+
+
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+
+import androidx.core.app.NotificationCompat;
+
+public class AlertReceiver extends BroadcastReceiver {
+    @Override
+    public void onReceive(Context context, Intent intent) {
+
+        NotificationHelper notificationHelper = new NotificationHelper(context);
+        NotificationCompat.Builder nb = notificationHelper.getChannelNotification();
+        notificationHelper.getmManager().notify(1,nb.build());
+
+    }
+}
+
+
+
+# ExampleJobIntentService.java
+
+
+
+
+import static com.example.backgroundtaskapp.App.CHANNEL_ID;
+
+import android.app.IntentService;
+import android.app.Notification;
+import android.content.Context;
+import android.content.Intent;
+import android.os.Build;
+import android.os.PowerManager;
+import android.os.SystemClock;
+import android.util.Log;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.core.app.JobIntentService;
+
+public class ExampleJobIntentService extends JobIntentService {
+    public static final String TAG ="ExampleJobIntentService";
+
+    static void enqueueWork(Context context, Intent work) {
+        enqueueWork(context,ExampleJobIntentService.class,123,work);
+
+    }
+
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+
+        Log.d(TAG, "onCreate");
+
+
+    }
+
+    @Override
+    protected void onHandleWork(@NonNull Intent intent) {
+
+        Log.d(TAG, "onHandleWork");
+
+
+
+
+        String input = intent.getStringExtra("inputExtra");
+        for (int i = 0; i <10 ; i++) {
+
+            Log.d(TAG, input+"-"+i);
+
+            if (
+                    isStopped()
+            ) {
+                return;
+
+            }
+            SystemClock.sleep(1000);
+
+        }
+
+
+
+    }
+
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        Log.d(TAG, "onDestroy");
+    }
+
+
+    @Override
+    public boolean onStopCurrentWork() {
+        Log.d(TAG, "onStopCurrentWork");
+        return super.onStopCurrentWork();
+
+    }
+}
+
+
+# NotificationHelper.java
+
+
+
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.content.Context;
+import android.content.ContextWrapper;
+import android.os.Build;
+
+import androidx.annotation.RequiresApi;
+import androidx.core.app.NotificationCompat;
+
+public class NotificationHelper extends ContextWrapper {
+    public static final String channelID = "channelID";
+    public static final String channelName = "Channel Name";
+
+    private NotificationManager mManager;
+    public NotificationHelper(Context base) {
+        super(base);
+        if (Build.VERSION.SDK_INT>=Build.VERSION_CODES.O) {
+
+            createChannel();
+        }
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.O)
+    private void createChannel() {
+
+
+            NotificationChannel channel = new NotificationChannel(channelID,channelName,NotificationManager.IMPORTANCE_HIGH);
+
+            getmManager().createNotificationChannel(channel);
+
+
+
+
+
+    }
+
+
+    public NotificationManager getmManager() {
+        if (mManager == null) {
+            mManager= (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        }
+        return mManager;
+    }
+
+
+    public NotificationCompat.Builder getChannelNotification() {
+
+        return new NotificationCompat.Builder(
+                getApplicationContext(),
+                channelID
+
+        )
+                .setContentTitle("Alarm")
+                .setContentText("Your AlarmManager is working")
+                .setSmallIcon(R.drawable.ic_android);
+
+    }
+
+
+
+
+
+
+
+}
+
+
+# TimePickerFragment.java
+
+
+
+import android.app.Dialog;
+import android.app.TimePickerDialog;
+import android.os.Bundle;
+import android.text.format.DateFormat;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.DialogFragment;
+
+import java.util.Calendar;
+
+public class TimePickerFragment extends DialogFragment {
+
+
+    @NonNull
+    @Override
+    public Dialog onCreateDialog(@Nullable Bundle savedInstanceState) {
+
+        Calendar c = Calendar.getInstance();
+        int hour = c.get(Calendar.HOUR_OF_DAY);
+        int minute = c.get(Calendar.MINUTE);
+
+        return new TimePickerDialog(getActivity(),(TimePickerDialog.OnTimeSetListener) getActivity(),hour,minute, DateFormat.is24HourFormat(getActivity()));
+    }
+}
+
+
+# activity_main.xml
+
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context="com.example.application.alarmmanagerproject.MainActivity">
+
+    <TextView
+        android:id="@+id/textView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_above="@id/button_timepicker"
+        android:layout_centerHorizontal="true"
+        android:layout_marginBottom="30dp"
+        android:text="No Alarm set"
+        android:textSize="30sp" />
+
+    <Button
+        android:id="@+id/button_timepicker"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:layout_centerVertical="true"
+        android:text="open time picker" />
+
+    <Button
+        android:id="@+id/button_cancel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/button_timepicker"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="27dp"
+        android:text="cancel alarm" />
+
+</RelativeLayout>
+
+# MainActivity.java
+
+
+
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.fragment.app.DialogFragment;
+
+import android.app.AlarmManager;
+import android.app.PendingIntent;
+import android.app.TimePickerDialog;
+import android.content.Context;
+import android.content.Intent;
+import android.os.Bundle;
+import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.TextView;
+import android.widget.TimePicker;
+
+import java.text.DateFormat;
+import java.util.Calendar;
+
+public class MainActivity extends AppCompatActivity implements TimePickerDialog.OnTimeSetListener {
+
+    private TextView mTextView;
+
+
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        mTextView = findViewById(R.id.textView);
+        Button buttonTimePicker = findViewById(R.id.button_timepicker);
+        buttonTimePicker.setOnClickListener(
+                view->{
+
+                    DialogFragment timePicker = new TimePickerFragment();
+                    timePicker.show(getSupportFragmentManager(),"time picker");
+
+                }
+        );
+
+        Button buttonCancelAlarm = findViewById(R.id.button_cancel);
+
+        buttonCancelAlarm.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+
+                cancelAlarm();
+
+            }
+        });
+
+    }
+
+    private void cancelAlarm() {
+
+        AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+
+        Intent intent = new Intent(this,AlertReceiver.class);
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(this,1,intent,0);
+
+        alarmManager.cancel(pendingIntent);
+        mTextView.setText("Alarm canceled");
+    }
+
+
+    @Override
+    public void onTimeSet(TimePicker timePicker, int houreOfDay, int minute) {
+
+
+        Calendar c = Calendar.getInstance();
+        c.set(Calendar.HOUR_OF_DAY,houreOfDay);
+        c.set(Calendar.MINUTE,minute);
+        c.set(Calendar.SECOND,0);
+
+
+        updateTimeText(c);
+        startAlarm(c);
+
+    }
+
+    private void startAlarm(Calendar c) {
+
+        AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+
+        Intent intent = new Intent(this,AlertReceiver.class);
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(this,1,intent,0);
+
+
+        if (c.before(Calendar.getInstance())) {
+
+            c.add(Calendar.DATE,1);
+        }
+
+        alarmManager.setExact(AlarmManager.RTC_WAKEUP,c.getTimeInMillis(),pendingIntent);
+
+
+
+
+    }
+
+    private void updateTimeText(Calendar c) {
+
+        String timeText = "Alarm set for: ";
+        timeText+= DateFormat.getTimeInstance(DateFormat.SHORT).format(c.getTime());
+
+        mTextView.setText(timeText);
+
+
+
+
+    }
+}
